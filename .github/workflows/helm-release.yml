@@ -1,57 +1,34 @@
-name: Create GitHub Release
+name: Release Charts
 
 on:
   push:
-    tags:
-      - 'v*' # Trigger the workflow on tags that match the pattern v*
+    branches:
+      - main
 
 jobs:
   release:
-    name: Create Release
+    # depending on default permission settings for your org (contents being read-only or read-write for workloads), you will have to add permissions
+    # see: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#modifying-the-permissions-for-the-github_token
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
-
     steps:
-      # Step 1: Check out the code
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v3
-
-      # Step 2: Set up environment if required (optional)
-      # For example, setup Node.js, Python, or other environments
-      - name: Set up Node.js (example)
-        uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          fetch-depth: 0
 
-      # Step 3: Build/Package Release Artifacts
-      # Optional step to prepare artifacts (e.g., build files, package binaries)
-      - name: Build or package artifacts
+      - name: Configure Git
         run: |
-          mkdir -p artifacts
-          echo "Example content" > artifacts/example.txt
-          echo "Another file" > artifacts/another-example.txt
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
-      # Step 4: Create a Release
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        with:
-          tag_name: ${{ github.ref_name }} # Use the tag that triggered the workflow
-          release_name: Release ${{ github.ref_name }}
-          body: |
-            ## Changelog
-            - Feature 1: Description
-            - Fix 2: Description
-            - Improvement 3: Description
-          draft: false
-          prerelease: false
+      - name: Install Helm
+        uses: azure/setup-helm@v4
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 
-      # Step 5: Upload Release Assets
-      - name: Upload Release Assets
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/example.txt
-          asset_name: example.txt
-          asset_content_type: text/plain
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.6.0
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
